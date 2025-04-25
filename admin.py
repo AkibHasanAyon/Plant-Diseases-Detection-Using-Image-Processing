@@ -145,7 +145,7 @@ elif app_mode == "Disease Recognition":
                  'টমেটো___সুস্থ']
 
             prediction = class_name[result_index]
-            st.success(f"Model predicts: {prediction['রোগ']}")
+            st.success(f"রোগের নাম: {prediction['রোগ']}")
             st.info(f"কেন হয়: {prediction['কেন হয়']}")
             st.warning(f"প্রতিকার: {prediction['প্রতিকার']}")
 
