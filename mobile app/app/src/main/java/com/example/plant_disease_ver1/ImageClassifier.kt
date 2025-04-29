@@ -83,7 +83,7 @@ class ImageClassifier(context: Context) {
         val inputBuffer = convertBitmapToByteBuffer(resizedBitmap)
         Log.d("ImageClassifier", "ByteBuffer capacity: ${inputBuffer.capacity()}")
 
-        // Create an output buffer with shape [1, 38]
+        // Create an output buffer with shape [1, 39]
         val outputBuffer = Array(1) { FloatArray(labels.size) }
         interpreter?.run(inputBuffer, outputBuffer)
 
