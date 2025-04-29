@@ -56,31 +56,42 @@ def save_uploaded_file(uploaded_file):
 # Admin credentials
 ADMIN_CREDENTIALS = {"admin": "admin"}
 
-# Sidebar
-st.sidebar.title("Dashboard")
-app_mode = st.sidebar.radio("Select Page", ["Home", "Disease Recognition", "Login", "Register", "Admin Dashboard", "About"])
-
+# Session state initialization
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'is_admin' not in st.session_state:
     st.session_state.is_admin = False
+if 'app_mode' not in st.session_state:
+    st.session_state.app_mode = "Home"
 
-# Logout buttons
+st.sidebar.title("Dashboard")
+
+# Determine which pages to show based on admin status
+if st.session_state.logged_in and st.session_state.is_admin:
+    page_options = ["Home", "Disease Recognition", "Login", "Register", "Admin Dashboard", "About"]
+else:
+    page_options = ["Home", "Disease Recognition", "Login", "Register", "About"]
+
+# Preserve selected app mode if still available
+if st.session_state.app_mode not in page_options:
+    st.session_state.app_mode = "Home"
+
+st.session_state.app_mode = st.sidebar.radio("Select Page", page_options, index=page_options.index(st.session_state.app_mode))
+
+# Logout button
 if st.session_state.logged_in:
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.is_admin = False
+        st.session_state.app_mode = "Home"
         st.success("You have logged out successfully.")
-        app_mode = "Home"
-
-# Placeholder for forms
-placeholder = st.empty()
+        st.rerun()
 
 # Load user data
 user_data = load_user_data()
 
-# Home page
-if app_mode == "Home":
+# Home Page
+if st.session_state.app_mode == "Home":
     st.header("PLANT DISEASE RECOGNITION SYSTEM")
     st.image("home_page.jpeg", use_container_width=True)
     st.markdown("""
@@ -91,8 +102,28 @@ if app_mode == "Home":
     Navigate to **Disease Recognition** to get started!
     """)
 
-# Disease Recognition page
-elif app_mode == "Disease Recognition":
+# Login Page
+elif st.session_state.app_mode == "Login":
+    st.subheader("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if username in user_data and user_data[username]['password'] == password:
+            st.success("Logged in successfully.")
+            st.session_state.logged_in = True
+            st.session_state.app_mode = "Disease Recognition"
+            st.rerun()
+        elif username in ADMIN_CREDENTIALS and ADMIN_CREDENTIALS[username] == password:
+            st.success("Admin logged in successfully.")
+            st.session_state.logged_in = True
+            st.session_state.is_admin = True
+            st.session_state.app_mode = "Admin Dashboard"
+            st.rerun()
+        else:
+            st.error("Invalid username or password.")
+
+# Disease Recognition Page
+elif st.session_state.app_mode == "Disease Recognition":
     if not st.session_state.logged_in:
         st.warning("Please log in to access Disease Recognition.")
     else:
@@ -103,6 +134,8 @@ elif app_mode == "Disease Recognition":
             st.image(image_path, use_container_width=True)
             st.snow()
             result_index = model_prediction(image_path)
+
+            # Define disease class names and descriptions here
             class_name = [
                  {"রোগ": "আপেল স্ক্যাব", "কেন হয়": "আর্দ্র আবহাওয়া ও অতিরিক্ত পানির কারণে ছত্রাক জন্মায়।", "প্রতিকার": "আক্রান্ত পাতা ছেঁটে ফেলুন, কপার ছত্রাকনাশক স্প্রে করুন। নিয়মিত ছাঁটাই ও পানি নিষ্কাশনের ব্যবস্থা নিন।"},
                  {"রোগ": "আপেল ব্ল্যাক রট", "কেন হয়": "পচা ফল বা পুরনো ডালে ছত্রাক জন্ম নিয়ে ছড়ায়।","প্রতিকার": "পচা ফল ও ডাল কেটে ফেলুন, ছত্রাকনাশক ব্যবহার করুন। গাছের নিচে পড়ে থাকা ফল নিয়মিত পরিষ্কার করুন।"},
@@ -143,98 +176,133 @@ elif app_mode == "Disease Recognition":
                  {"রোগ": "টমেটো ইয়েলো লিফ কার্ল ভাইরাস", "কেন হয়": "সাদা মাছি দ্বারা ভাইরাস ছড়ায়।","প্রতিকার": "সাদা মাছি নিয়ন্ত্রণ করুন, আক্রান্ত গাছ সরান।"},
                  {"রোগ": "টমেটো মোজাইক ভাইরাস", "কেন হয়": "ভাইরাস দ্বারা সংক্রমণ।", "প্রতিকার": "রোগমুক্ত বীজ ব্যবহার করুন, গাছ ও পোকা নিয়ন্ত্রণ করুন।"},
                  'টমেটো___সুস্থ']
+            
+            result = class_name[result_index]
+            st.subheader(f"রোগ: {result.get('রোগ', 'N/A')}")
+            st.markdown(f"**কেন হয়:** {result.get('কেন হয়', 'N/A')}")
+            st.markdown(f"**প্রতিকার:** {result.get('প্রতিকার', 'N/A')}")
+            log_image_input("User", image_path, result.get('রোগ', 'N/A'))
 
-            prediction = class_name[result_index]
-            st.success(f"রোগের নাম: {prediction['রোগ']}")
-            st.info(f"কেন হয়: {prediction['কেন হয়']}")
-            st.warning(f"প্রতিকার: {prediction['প্রতিকার']}")
-
-            log_image_input(st.session_state.user_mobile, image_path, prediction)
-
-# Register page
-elif app_mode == "Register":
-    with placeholder.form("register"):
-        st.markdown("#### Register a new account")
-        first_name = st.text_input("First Name")
-        last_name = st.text_input("Last Name")
-        mobile_number = st.text_input("Mobile Number", max_chars=11)
-        password = st.text_input("Password", type="password")
-        confirm_password = st.text_input("Confirm Password", type="password")
-        submit = st.form_submit_button("Register")
-    if submit:
-        if len(mobile_number) != 11:
-            st.error("Enter a valid 11-digit mobile number.")
-        elif mobile_number in user_data:
-            st.error("Mobile number already registered.")
-        elif password != confirm_password:
-            st.error("Passwords do not match.")
+# Register Page
+elif st.session_state.app_mode == "Register":
+    st.subheader("Register")
+    new_username = st.text_input("Choose a Username")
+    new_password = st.text_input("Choose a Password", type="password")
+    if st.button("Register"):
+        if new_username in user_data:
+            st.warning("Username already exists.")
         else:
-            user_data[mobile_number] = {"first_name": first_name, "last_name": last_name, "password": password}
+            user_data[new_username] = {"password": new_password}
             save_user_data(user_data)
-            st.success("Registration successful! Please login.")
+            st.success("Registration successful. Please login.")
+            st.session_state.app_mode = "Login"
+            st.rerun()
 
-# Login page
-elif app_mode == "Login":
-    with placeholder.form("login"):
-        st.markdown("#### Enter your credentials")
-        login_mobile_number = st.text_input("Mobile Number", max_chars=11)
-        login_password = st.text_input("Password", type="password")
-        login_submit = st.form_submit_button("Login")
-    if login_submit:
-        if login_mobile_number in user_data and user_data[login_mobile_number]["password"] == login_password:
-            st.session_state.logged_in = True
-            st.session_state.user_mobile = login_mobile_number
-            st.success("Login successful!")
-        else:
-            st.error("Invalid mobile number or password.")
 
 # Admin Dashboard
-elif app_mode == "Admin Dashboard":
-    if not st.session_state.is_admin:
-        admin_username = st.text_input("Admin Username")
-        admin_password = st.text_input("Admin Password", type="password")
-        submit_admin = st.button("Login as Admin")
-        if submit_admin:
-            if ADMIN_CREDENTIALS.get(admin_username) == admin_password:
-                st.session_state.is_admin = True
-                st.success("Admin login successful!")
-            else:
-                st.error("Invalid admin credentials.")
-    else:
-        st.header("Admin Dashboard")
-        if st.button("Admin Logout"):
-            st.session_state.is_admin = False
-            st.success("Admin logged out successfully.")
-            app_mode = "Home"
-        if st.button("View Model Output (User Predictions)"):
-            st.subheader("User Predictions and Image Uploads")
+# Admin Dashboard
+elif st.session_state.app_mode == "Admin Dashboard":
+    if st.session_state.logged_in and st.session_state.is_admin:
+        st.subheader("Admin Dashboard")
+
+        admin_section = st.radio("Admin Options", ["Manage Submissions", "Manage Users"])
+
+        # --- Manage Submissions ---
+        if admin_section == "Manage Submissions":
             if os.path.exists('user_inputs.json'):
                 with open('user_inputs.json', 'r') as f:
-                    user_inputs = json.load(f)
-                if user_inputs:
-                    for entry in user_inputs:
-                        st.write(f"User {entry['mobile_number']} uploaded image {entry['image_path']} at {entry['timestamp']}. Prediction: {entry['prediction']}")
-                        if os.path.exists(entry['image_path']):
-                            st.image(entry['image_path'], caption=f"Uploaded Image by {entry['mobile_number']}", use_container_width=True)
-                        else:
-                            st.warning(f"Image not found at path: {entry['image_path']}")
-                else:
-                    st.warning("No predictions available.")
+                    inputs = json.load(f)
+
+                for idx, entry in enumerate(inputs):
+                    st.markdown(f"---\n**Submission #{idx + 1}**")
+                    st.write(f"📱 Mobile: {entry['mobile_number']}")
+                    st.write(f"🕒 Time: {entry['timestamp']}")
+                    st.write(f"🩺 Prediction: {entry['prediction']}")
+                    if os.path.exists(entry['image_path']):
+                        st.image(entry['image_path'], caption="Uploaded Image", use_container_width=True)
+                    else:
+                        st.warning(f"Image not found at {entry['image_path']}")
+
+                    col1, col2 = st.columns([1, 1])
+
+                    # Edit Submission
+                    with col1:
+                        if st.button("📝 Edit", key=f"edit_input_{idx}"):
+                            new_prediction = st.text_input("New Prediction", value=entry["prediction"], key=f"pred_input_{idx}")
+                            if st.button("Save Changes", key=f"save_input_{idx}"):
+                                entry["prediction"] = new_prediction
+                                # Save updated submissions
+                                with open('user_inputs.json', 'w') as f:
+                                    json.dump(inputs, f)
+                                st.success("Submission updated successfully.")
+                                st.rerun()  # Reload the page to reflect changes
+
+                    # Delete Submission
+                    with col2:
+                        if st.button(f"❌ Delete Entry #{idx + 1}", key=f"delete_input_{idx}"):
+                            image_path = entry['image_path']
+                            # Delete the image file if it exists
+                            if os.path.exists(image_path):
+                                os.remove(image_path)
+                                st.warning(f"Image at {image_path} has been deleted.")
+                            # Remove the submission from the list
+                            inputs.pop(idx)
+                            with open('user_inputs.json', 'w') as f:
+                                json.dump(inputs, f)
+                            st.warning(f"Submission #{idx + 1} deleted successfully.")
+                            st.rerun()  # Reload the page to reflect the changes
+
             else:
-                st.warning("No user input logs found.")
-        st.subheader("User Information")
-        for mobile, details in user_data.items():
-            st.write(f"Mobile: {mobile}, Name: {details['first_name']} {details['last_name']}")
+                st.info("No submissions found.")
+
+        # --- Manage Users ---
+        elif admin_section == "Manage Users":
+            st.write("Registered Users:")
+            if os.path.exists('user_data.json'):
+                with open('user_data.json', 'r') as f:
+                    users = json.load(f)
+
+                for username in list(users.keys()):
+                    st.write(f"👤 Username: `{username}`")
+                    col1, col2 = st.columns([1, 1])
+
+                    # Edit User Data
+                    with col1:
+                        if st.button(f"📝 Edit User {username}", key=f"edit_user_{username}"):
+                            new_username = st.text_input(f"New Username for {username}", value=username, key=f"new_user_{username}")
+                            new_password = st.text_input(f"New Password for {username}", value=users[username]["password"], type="password", key=f"new_pass_{username}")
+                            if st.button("Save Changes", key=f"save_user_{username}"):
+                                users[new_username] = {"password": new_password}
+                                if new_username != username:
+                                    del users[username]
+                                with open('user_data.json', 'w') as f:
+                                    json.dump(users, f)
+                                st.success(f"User {username} updated successfully.")
+                                st.rerun()  # Reload the page to reflect changes
+
+                    # Delete User Data
+                    with col2:
+                        if st.button(f"❌ Delete User {username}", key=f"delete_user_{username}"):
+                            del users[username]
+                            with open('user_data.json', 'w') as f:
+                                json.dump(users, f)
+                            st.warning(f"User {username} deleted successfully.")
+                            st.rerun()  # Reload the page to reflect the changes
+
+            else:
+                st.info("No users registered.")
+    else:
+        st.warning("Admin access only.")
+
+
+
+
+
 
 # About Page
-elif app_mode == "About":
-    st.header("About Us")
+elif st.session_state.app_mode == "About":
+    st.subheader("About")
     st.markdown("""
-    This Plant Disease Recognition System was built to help identify plant diseases from leaf images using AI.
-
-    **Mission**: Assist farmers and agriculturists in protecting crops with fast, accurate diagnosis.
-
-    **Team**: Developed by a group of dedicated software developers and AI enthusiasts passionate about agriculture.
+    This is a machine learning-based plant disease recognition system built using **TensorFlow** and **Streamlit**.
     """)
-
 
